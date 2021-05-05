@@ -31,12 +31,15 @@ public function fields(Request $request)
         Table::make('Countries')
 
         // Optional:
-        ->disableAdding() // Disable adding new rows and columns
-        ->disableDeleting() // Disable deleting rows and columns
+        ->disableAddingRows() // Disable adding new rows
+        ->disableDeletingRows() // Disable deleting rows
+        ->disableAddingColumns() // Disable adding columns
+        ->disableDeletingColumns() // Disable deleting columns
         ->minRows(1) // The minimum number of rows in the table
         ->maxRows(10) // The maximum number of rows in the table
         ->minColumns(1) // The minimum number of columns in the table
         ->maxColumns(10) // The maximum number of columns in the table
+        ->headings(['Languages', 'Countries'], true) // Shows table head and allows for saving as objects.
     ];
 }
 ```

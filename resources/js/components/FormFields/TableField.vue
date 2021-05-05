@@ -1,13 +1,14 @@
 <template>
   <default-field :errors="errors" :field="field" :full-width-content="true">
     <template slot="field">
-      <Table :can-delete="field.canDelete" :edit-mode="!field.readonly">
+      <Table :can-delete="field.canDeleteRows" :edit-mode="!field.readonly">
+        <TableRow v-if="defaultAttributes.headings.length > 0" :row="{cells: defaultAttributes.headings}" :index="-1" :disabled="true" />
         <div class="bg-white overflow-hidden key-value-items">
           <TableRow
             v-for="(row, index) in theData"
             :key="row.id"
             :ref="row.id"
-            :can-delete="field.canDelete"
+            :can-delete="field.canDeleteRows"
             :index="index"
             :read-only="field.readonly"
             :row.sync="row"
@@ -15,7 +16,7 @@
           />
         </div>
       </Table>
-      <div v-if="field.canDelete" class="relative mr-12 mt-3 flex">
+      <div v-if="field.canDeleteColumns" class="relative mr-12 mt-3 flex">
         <div v-for="n in numberOfColumns" class="flex flex-grow justify-center">
           <button
             class="appearance-none cursor-pointer text-70 hover:text-danger active:outline-none active:shadow-outline focus:outline-none focus:shadow-outline"
@@ -28,8 +29,9 @@
           </button>
         </div>
       </div>
-      <div v-if="!field.readonly && field.canAdd" class="mr-12 flex">
+      <div v-if="!field.readonly" class="mr-12 flex">
         <button
+          v-if="field.canAddRows"
           class="btn btn-link dim cursor-pointer rounded-lg mx-auto text-primary mt-3 px-3 rounded-b-lg flex items-center"
           type="button"
           @click="addRowAndSelect"
@@ -38,7 +40,7 @@
           <span class="ml-1">{{ __('novaTableField.addRow') }}</span>
         </button>
         <button
-          v-if="numberOfColumns > 0"
+          v-if="field.canAddColumns"
           class="btn btn-link dim cursor-pointer rounded-lg mx-auto text-primary mt-3 px-3 rounded-b-lg flex items-center"
           tabindex="-1"
           type="button"
@@ -57,6 +59,7 @@ import { FormField, HandlesValidationErrors } from 'laravel-nova';
 import TableRow from './TableRow';
 import autosize from 'autosize';
 import Table from './Table';
+import parseKeys from '../../utils';
 
 function guid() {
   var S4 = function () {
@@ -76,13 +79,33 @@ export default {
     let valuesArray = Array.isArray(this.field.value) ? this.value : JSON.parse(this.field.value);
     if (!Array.isArray(valuesArray) || !valuesArray.length) valuesArray = [];
 
-    this.theData = _.map(valuesArray, cells => ({
-      id: guid(),
-      cells,
-    }));
+    this.theData = _.map(valuesArray, cells => {
+      if(Array.isArray(cells)) {
+        cells = cells.sort((a, b) => {
+          if(this.defaultAttributes.assoc) {
+            return this.defaultAttributes.headings.indexOf(a) - this.defaultAttributes.headings.indexOf(b)
+          }
+          return true;
+        });
+      } else {
+        cells = Object.keys(cells).sort((a, b) => {
+          if(this.defaultAttributes.assoc) {
+            return this.defaultAttributes.headings.indexOf(a) - this.defaultAttributes.headings.indexOf(b)
+          }
+          return true;
+        }).reduce((list, key) => {
+          return {...list, [key]: cells[key]};
+        }, {});
+
+        return {
+          id: guid(),
+          cells
+        }
+      }
+    });
 
     if (this.theData.length === 0) {
-      for (let i = 0; i < (this.defaultAttributes.minRows || 1); i++) {
+      for (let i = 0; i < this.defaultAttributes.minRows; i++) {
         this.addRow();
       }
     }
@@ -205,25 +228,47 @@ export default {
 
   computed: {
     /**
-     * Return the final filtered json object
+     * Retur the final filtered json object
      */
     finalPayload() {
       return _(this.theData)
-        .map(row => (row && row.cells && row.cells.length > 0 ? row.cells : undefined))
-        .reject(row => row === undefined)
-        .value();
+      .map(row => (row && row.cells && (row.cells.length > 0 || Object.keys(row.cells).length > 0) ? row.cells : undefined))
+      .reject(row => row === undefined)
+      .map(cells => {
+        if(! this.defaultAttributes.assoc){
+          return cells;
+        }
+        if(! Array.isArray(cells)) {
+          return cells;
+        }
+
+        let assocCells = {};
+        this.defaultAttributes.headings.map((heading, key) => {
+          assocCells[heading] = cells[key];
+        })
+        return assocCells
+      })
+      .map(cells => parseKeys(cells))
+
+      .value();
     },
 
     defaultAttributes() {
+      let headings = this.field.headings || [];
       return {
-        minRows: this.field.minRows || 1,
+        minRows: _.isInteger(this.field.minRows) ? this.field.minRows : 1,
         maxRows: this.field.maxRows,
-        minColumns: this.field.minColumns || 1,
-        maxColumns: this.field.maxColumns,
+        minColumns: headings.length > 0 ? headings.length :  (this.field.minColumns || 1),
+        maxColumns: headings.length > 0 ? headings.length : this.field.maxColumns,
+        headings,
+        assoc : this.field.assoc || false,
       };
     },
 
     numberOfColumns() {
+      if(this.defaultAttributes.headings.length > 0) {
+        return this.defaultAttributes.headings.length;
+      }
       return this.theData[0] ? this.theData[0].cells.length : this.defaultAttributes.minColumns;
     },
   },

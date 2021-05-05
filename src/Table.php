@@ -2,6 +2,7 @@
 
 namespace OptimistDigital\NovaTableField;
 
+use Illuminate\Support\Str;
 use Laravel\Nova\Fields\Field;
 use Laravel\Nova\Fields\Number;
 use Laravel\Nova\Http\Requests\NovaRequest;
@@ -27,14 +28,54 @@ class Table extends Field
      *
      * @var bool
      */
-    public $canAdd = true;
+    public $canAddRows = true;
 
     /**
      * Determine if rows are able to be deleted.
      *
      * @var bool
      */
-    public $canDelete = true;
+    public $canDeleteRows = true;
+
+    /**
+     * Determine if new columns are able to be added.
+     *
+     * @var bool
+     */
+    public $canAddColumns = true;
+
+
+    /**
+     * Determine if columns are able to be deleted.
+     *
+     * @var bool
+     */
+    public $canDeleteColumns = true;
+
+
+    public function __construct($name, $attribute = null, callable $resolveCallback = null)
+    {
+        parent::__construct($name, $attribute, $resolveCallback);
+        $this->fillCallback = static function(NovaRequest $request, $model, $attribute, $requestAttribute) {
+
+            if (! $request->exists($requestAttribute)) {
+                return;
+            }
+
+            if(Str::contains($requestAttribute, '->')) {
+                $paths = explode('->', $requestAttribute);
+
+                $root = array_shift($paths);
+                $value = $model->{$root};
+                data_set($value, $paths, json_decode($request[$requestAttribute], true));
+
+                return $model->setAttribute($root, $value);
+            }
+
+            $model->{$attribute} = json_decode($request[$requestAttribute], true);
+        };
+
+    }
 
     /**
      * The minimum number of rows in the table.
@@ -80,14 +121,22 @@ class Table extends Field
         return $this->withMeta(['maxColumns' => $max]);
     }
 
+    public function headings(array $headings, bool $assoc = true)
+    {
+        return $this->withMeta([
+            'headings' => $headings,
+            'assoc' => $assoc
+        ]);
+    }
+
     /**
      * Disable adding new rows and columns.
      *
      * @return $this
      */
-    public function disableAdding()
+    public function disableAddingRows()
     {
-        $this->canAdd = false;
+        $this->canAddRows = false;
 
         return $this;
     }
@@ -97,11 +146,49 @@ class Table extends Field
      *
      * @return $this
      */
-    public function disableDeleting()
+    public function disableDeletingRows()
     {
-        $this->canDelete = false;
+        $this->canDeleteRows = false;
 
         return $this;
+    }
+
+    /**
+     * Disable adding new rows and columns.
+     *
+     * @return $this
+     */
+    public function disableAddingColumns()
+    {
+        $this->canAddColumns = false;
+
+        return $this;
+    }
+
+    /**
+     * Disable deleting rows and columns.
+     *
+     * @return $this
+     */
+    public function disableDeletingColumns()
+    {
+        $this->canDeleteColumns = false;
+
+        return $this;
+    }
+
+    /** @deprecated  */
+    public function disableAdding()
+    {
+        $this->disableAddingRows();
+        return $this->disableAddingColumns();
+    }
+
+    /** @deprecated  */
+    public function disableDeleting()
+    {
+        $this->disableDeletingRows();
+        return $this->disableDeletingColumns();
     }
 
     /**
@@ -112,24 +199,10 @@ class Table extends Field
     public function jsonSerialize()
     {
         return array_merge(parent::jsonSerialize(), [
-            'canAdd' => $this->canAdd,
-            'canDelete' => $this->canDelete,
+            'canAddRows' => $this->canAddRows,
+            'canDeleteRows' => $this->canDeleteRows,
+            'canAddColumns' => $this->canAddColumns,
+            'canDeleteColumns' => $this->canDeleteColumns,
         ]);
-    }
-
-    /**
-     * Hydrate the given attribute on the model based on the incoming request.
-     *
-     * @param NovaRequest $request
-     * @param string $requestAttribute
-     * @param object $model
-     * @param string $attribute
-     * @return void
-     */
-    protected function fillAttributeFromRequest(NovaRequest $request, $requestAttribute, $model, $attribute)
-    {
-        if ($request->exists($requestAttribute)) {
-            $model->{$attribute} = json_decode($request[$requestAttribute], true);
-        }
     }
 }

@@ -67,11 +67,14 @@ class Table extends Field
 
                 $root = array_shift($paths);
                 $value = $model->{$root};
-                if (!empty($value)) {
-                    data_set($value, $paths, json_decode($request[$requestAttribute], true));
 
-                    return $model->setAttribute($root, $value);
-                }
+                data_set($value, $paths, json_decode($request[$requestAttribute], true));
+
+                return $model->setAttribute($root, $value);
+            }
+
+            if (!empty($model->{$attribute})) {
+                return '—';
             }
 
             $model->{$attribute} = json_decode($request[$requestAttribute], true);

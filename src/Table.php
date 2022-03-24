@@ -73,7 +73,7 @@ class Table extends Field
                 return $model->setAttribute($root, $value);
             }
 
-            if (!empty($model->{$attribute})) {
+            if (empty($model->{$attribute})) {
                 return '—';
             }
 

@@ -59,7 +59,7 @@ class Table extends Field
         $this->fillCallback = static function(NovaRequest $request, $model, $attribute, $requestAttribute) {
 
             if (! $request->exists($requestAttribute)) {
-                return '—';
+                return;
             }
 
             if(Str::contains($requestAttribute, '->')) {
@@ -67,9 +67,11 @@ class Table extends Field
 
                 $root = array_shift($paths);
                 $value = $model->{$root};
-                data_set($value, $paths, json_decode($request[$requestAttribute], true));
+                if (!empty($value)) {
+                    data_set($value, $paths, json_decode($request[$requestAttribute], true));
 
-                return $model->setAttribute($root, $value);
+                    return $model->setAttribute($root, $value);
+                }
             }
 
             $model->{$attribute} = json_decode($request[$requestAttribute], true);

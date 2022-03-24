@@ -59,7 +59,7 @@ class Table extends Field
         $this->fillCallback = static function(NovaRequest $request, $model, $attribute, $requestAttribute) {
 
             if (! $request->exists($requestAttribute)) {
-                return;
+                return '—';
             }
 
             if(Str::contains($requestAttribute, '->')) {

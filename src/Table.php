@@ -76,24 +76,8 @@ class Table extends Field
             $model->{$attribute} = json_decode($request[$requestAttribute], true);
         };
 
-        $this->resolveCallback = static function(NovaRequest $request, $model, $attribute, $requestAttribute) {
-
-            if (! $request->exists($requestAttribute)) {
-                return;
-            }
-
-            if(Str::contains($requestAttribute, '->')) {
-                $paths = explode('->', $requestAttribute);
-
-                $root = array_shift($paths);
-                $value = $model->{$root};
-
-                data_set($value, $paths, json_decode($request[$requestAttribute], true));
-
-                return $model->setAttribute($root, $value);
-            }
-
-            $model->{$attribute} = json_decode($request[$requestAttribute], true);
+        $this->resolveCallback = static function($request, $model, $attribute) {
+            return $request;
         };
 
     }

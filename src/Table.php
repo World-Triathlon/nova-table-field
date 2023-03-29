@@ -67,6 +67,7 @@ class Table extends Field
 
                 $root = array_shift($paths);
                 $value = $model->{$root};
+
                 data_set($value, $paths, json_decode($request[$requestAttribute], true));
 
                 return $model->setAttribute($root, $value);
@@ -74,6 +75,11 @@ class Table extends Field
 
             $model->{$attribute} = json_decode($request[$requestAttribute], true);
         };
+
+        $this->resolveCallback = static function($request, $model, $attribute) {
+            return $request;
+        };
+
 
     }
 
